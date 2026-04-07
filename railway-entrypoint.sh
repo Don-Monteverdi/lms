@@ -70,9 +70,22 @@ sed -i 's|^web: bench serve --port|web: bench serve --noreload --nothreading --h
 echo "[entrypoint] Procfile after edits:"
 cat ./Procfile
 
-# --- First-boot: create site if it doesn't exist ---
-if [ ! -d "sites/${SITE_NAME}" ]; then
-    echo "[entrypoint] site ${SITE_NAME} not found — creating (this takes ~2-3 min)..."
+# --- Detect site health: directory exists AND can list apps ---
+# A stale/partial site directory from a failed previous deploy will have a folder
+# but fail `bench --site X list-apps`. In that case we drop and recreate.
+SITE_HEALTHY=0
+if [ -d "sites/${SITE_NAME}" ]; then
+    if bench --site "$SITE_NAME" list-apps > /dev/null 2>&1; then
+        SITE_HEALTHY=1
+    else
+        echo "[entrypoint] WARN: sites/${SITE_NAME} exists but list-apps failed — treating as corrupt, will recreate"
+        rm -rf "sites/${SITE_NAME}"
+    fi
+fi
+
+if [ $SITE_HEALTHY -eq 0 ]; then
+    echo "[entrypoint] creating site ${SITE_NAME} (this takes ~2-3 min)..."
+    # --force drops any existing DB with the same name (left over from a failed attempt)
     bench new-site "$SITE_NAME" \
         --force \
         --db-host "$MARIADB_HOST" \
@@ -87,12 +100,17 @@ if [ ! -d "sites/${SITE_NAME}" ]; then
     echo "[entrypoint] installing lms app..."
     bench --site "$SITE_NAME" install-app lms
 
+    echo "[entrypoint] running migrate to ensure schema is up to date..."
+    bench --site "$SITE_NAME" migrate
+
     bench use "$SITE_NAME"
     bench --site "$SITE_NAME" clear-cache
     echo "[entrypoint] site created successfully."
 else
-    echo "[entrypoint] site ${SITE_NAME} exists — skipping creation."
+    echo "[entrypoint] site ${SITE_NAME} is healthy — skipping creation."
     bench use "$SITE_NAME"
+    # Still run migrate in case the image has newer migrations
+    bench --site "$SITE_NAME" migrate || true
 fi
 
 # Allow Railway proxy to hit us by hostname
