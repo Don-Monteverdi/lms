@@ -14,6 +14,10 @@
 
 FROM frappe/bench:latest
 
+# Unbuffered stdout so Railway sees logs in real-time
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=UTF-8
+
 USER frappe
 WORKDIR /home/frappe
 
