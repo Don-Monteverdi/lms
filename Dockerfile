@@ -49,7 +49,6 @@ RUN cp -a /home/frappe/frappe-bench/sites /home/frappe/sites-seed
 COPY --chown=frappe:frappe railway-entrypoint.sh /home/frappe/railway-entrypoint.sh
 USER root
 RUN chmod +x /home/frappe/railway-entrypoint.sh
-USER frappe
 
 # Frappe web port
 EXPOSE 8000
@@ -58,4 +57,6 @@ EXPOSE 9000
 
 WORKDIR /home/frappe/frappe-bench
 
+# Runtime user is root so the entrypoint can chown the Railway-mounted volume
+# (which lands root-owned) then drop to the frappe user for all bench commands.
 CMD ["/home/frappe/railway-entrypoint.sh"]

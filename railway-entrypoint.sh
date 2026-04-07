@@ -1,11 +1,27 @@
 #!/bin/bash
 # Railway entrypoint for Frappe LMS
 # Runs on every container start. Idempotent — safe to re-run.
+#
+# Two-stage:
+#   Stage 1 (root): chown the Railway-mounted volume so frappe can write to it,
+#                   then re-exec this same script as the frappe user.
+#   Stage 2 (frappe): do the actual bench work.
 
-# Aggressive debugging: trace every command, abort on error, unbuffered output
 set -ex
 export PYTHONUNBUFFERED=1
 
+# --- Stage 1: root-only work ---
+if [ "$(id -u)" = "0" ]; then
+    echo "[entrypoint-root] $(date) — fixing volume permissions..."
+    # Railway mounts volumes root-owned. Hand /sites to the frappe user so the
+    # cp/seed step and bench commands can write to it.
+    chown -R frappe:frappe /home/frappe/frappe-bench/sites
+    echo "[entrypoint-root] dropping privileges to frappe user..."
+    # Re-exec as frappe. su -s /bin/bash is available in every frappe/bench image.
+    exec su -s /bin/bash frappe -c "exec $0"
+fi
+
+# --- Stage 2: runs as frappe ---
 echo "[entrypoint] $(date) — starting"
 echo "[entrypoint] user=$(whoami) pwd=$(pwd)"
 
