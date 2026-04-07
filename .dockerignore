@@ -1,0 +1,21 @@
+# Ignore everything the Dockerfile doesn't need at build context time.
+# The Dockerfile uses `bench get-app` to pull the LMS source from GitHub inside
+# the image, so the local source tree doesn't need to be uploaded — only the
+# entrypoint script + railway.toml.
+
+.git
+.github
+cypress
+frontend
+frappe-ui
+lms
+node_modules
+**/__pycache__
+**/*.pyc
+**/.DS_Store
+**/.venv
+**/venv
+docker
+docs
+*.md
+!DEPLOY.md

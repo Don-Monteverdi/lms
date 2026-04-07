@@ -12,6 +12,23 @@ echo "[entrypoint] user=$(whoami) pwd=$(pwd)"
 cd /home/frappe/frappe-bench
 echo "[entrypoint] cd frappe-bench OK"
 
+# --- Volume seeding (first boot after mounting Railway volume) ---
+# Railway mounts volumes EMPTY on first attach, masking whatever was baked into
+# the image at that path. If apps.txt is missing, the volume is fresh — restore
+# sites/ from the /home/frappe/sites-seed snapshot created at build time.
+if [ ! -f /home/frappe/frappe-bench/sites/apps.txt ]; then
+    if [ -d /home/frappe/sites-seed ]; then
+        echo "[entrypoint] sites/ is empty (fresh Railway volume) — seeding from image snapshot..."
+        cp -a /home/frappe/sites-seed/. /home/frappe/frappe-bench/sites/
+        echo "[entrypoint] seed complete, contents:"
+        ls -la /home/frappe/frappe-bench/sites/
+    else
+        echo "[entrypoint] WARN: sites/ empty AND no seed snapshot — bench may fail"
+    fi
+else
+    echo "[entrypoint] sites/ already populated (existing volume) — skipping seed"
+fi
+
 # --- Required env vars ---
 : "${MARIADB_HOST:?MARIADB_HOST is required (link Railway MySQL plugin)}"
 : "${MARIADB_ROOT_PASSWORD:?MARIADB_ROOT_PASSWORD is required}"

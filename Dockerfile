@@ -39,6 +39,12 @@ RUN bench get-app --branch version-15 https://github.com/frappe/payments \
 # Build frontend assets for LMS
 RUN bench build --app lms
 
+# Save a pristine copy of sites/ so we can seed a fresh Railway volume on first boot.
+# When Railway mounts a volume at /home/frappe/frappe-bench/sites, it masks whatever
+# is in the image at that path. The entrypoint restores apps.txt, assets/, and
+# common_site_config.json from this seed if the volume is empty.
+RUN cp -a /home/frappe/frappe-bench/sites /home/frappe/sites-seed
+
 # Copy entrypoint script
 COPY --chown=frappe:frappe railway-entrypoint.sh /home/frappe/railway-entrypoint.sh
 USER root
